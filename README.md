@@ -1,6 +1,7 @@
 
-<img src="https://github.com/user-attachments/assets/a70546ac-f411-44dd-90b9-b6a9d405bd62" alt="logo_proxigram" width="250" /># MTS
+<img src="https://github.com/user-attachments/assets/a70546ac-f411-44dd-90b9-b6a9d405bd62" alt="logo_proxigram" width="250" />
 
+# MTS
 Meeting Transcriber & Summarizer (FFmpeg v8 Whisper + LM Studio / Ollama )
 
 [🇫🇷 Lire ce README en français](README.fr.md)
