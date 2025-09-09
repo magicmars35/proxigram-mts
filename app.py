@@ -36,6 +36,8 @@ from typing import Tuple, Dict, List
 import gradio as gr
 import requests
 from dotenv import load_dotenv
+from h11 import LocalProtocolError
+from fastapi.responses import PlainTextResponse
 
 # ----------------------
 # Config (.env optional)
@@ -739,4 +741,8 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
     )
 
 if __name__ == "__main__":
+    @demo.server_app.exception_handler(LocalProtocolError)
+    async def _handle_protocol_error(request, exc):
+        return PlainTextResponse("Incomplete request.", status_code=400)
+
     demo.launch()
