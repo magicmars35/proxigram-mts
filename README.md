@@ -7,7 +7,8 @@ A tiny Gradio app that records **from your browser microphone** or **uploads an 
 > * One-click **record or upload** (Gradio 4.x `Audio`).
 > * Robust capture: **pre‑roll** (to avoid missing the first words), optional **VAD**, and **input normalization** to WAV 16 kHz mono.
 > * Flexible output: **text / srt / json**.
-> * Built‑in **prompt template CRUD** (name, type, content) persisted to `templates.json` and used as **system prompt** for LM Studio.
+> * Built‑in **prompt template CRUD** persisted to `prompt_templates.json` and used as **system prompt** for LM Studio.
+> * Persistent **UI options** (language 🇬🇧/🇫🇷 and light/dark theme) saved to `ui_settings.json`.
 
 ---
 
@@ -42,6 +43,7 @@ anyio>=4.4
 h11>=0.14
 httpx>=0.27
 httpcore>=1.0
+python-dotenv
 ```
 
 > **Privacy**: All audio processing happens locally via FFmpeg; the transcript is summarized by your local LM Studio instance.
@@ -94,7 +96,7 @@ WHISPER_MODEL_PATH=./models/ggml-large-v3-turbo.bin
 WHISPER_LANGUAGE=fr
 
 # Templates storage
-TEMPLATES_PATH=templates.json
+TEMPLATES_PATH=prompt_templates.json
 ```
 
 Defaults are the same as the example above. You can also edit the constants at the top of the Python file.
@@ -123,33 +125,35 @@ Gradio will print a local URL (e.g. `http://127.0.0.1:7860`).
 4. Click **Transcribe** → FFmpeg runs the `whisper` filter and writes the transcript file into `./transcripts/`.
 5. Inspect the transcript/SRT/JSON shown in the UI.
 6. Pick or edit a **Prompt Template** and click **Summarize** → LM Studio returns a structured Markdown **meeting minutes**.
+7. (Optional) Use the **Options** tab to switch UI language (English/French) or theme (light/dark). Choices persist to `ui_settings.json`.
 
 ---
 
 ## Prompt Templates (CRUD)
 
-* Templates are persisted to **`templates.json`** in the project root.
-* Each template is an object with:
+* Templates are persisted to **`prompt_templates.json`** in the project root.
+* Each entry is a mapping of **name ➝ prompt content**.
+* The UI provides buttons to **Reload**, **Save**, and **Delete** templates. The selected template’s content is sent as the system prompt.
+* You can also hand‑edit `prompt_templates.json` while the app is stopped.
 
-  * `name` — human‑friendly label
-  * `type` — free text (e.g., `compte_rendu`, `brief`, `action_items`)
-  * `content` — the **system prompt** used for LM Studio
-* The UI provides buttons to **Reload**, **New**, **Delete**, and **Save** templates. The currently selected template’s **content** is sent as the system prompt.
-* You can also hand‑edit `templates.json` while the app is stopped.
-
-**Example `templates.json`:**
+**Example `prompt_templates.json`:**
 
 ```json
-[
-  {
-    "name": "CR Meeting (Default)",
-    "type": "compte_rendu",
-    "content": "You are an assistant specializing in meeting minutes. Produce a clear Markdown report with: Context, Agenda, Decisions, Actions (Owner→Action→Due date), Next steps, Quotes, Risks/Open points. Be concise and correct obvious transcription errors."
-  }
-]
+{
+  "default": "You are an assistant specializing in meeting minutes...",
+  "brief": "Write a concise summary focusing on decisions and actions."
+}
 ```
 
 > The app trims the template content to a safe length before sending it to LM Studio.
+
+---
+
+## UI Settings
+
+* The **Options** tab lets you choose interface language (English or French) and theme (light or dark).
+* Selections are persisted to **`ui_settings.json`** so your preferences are restored on next launch.
+* Delete or edit this file to reset the UI settings.
 
 ---
 
