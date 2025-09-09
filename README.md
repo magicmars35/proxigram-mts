@@ -152,6 +152,7 @@ Gradio will print a local URL (e.g. `http://127.0.0.1:7860`).
 ## UI Settings
 
 * The **Options** tab lets you choose interface language (English or French) and theme (light or dark).
+* Labels for each language are stored in **`strings/<lang>.json`** for easy translation.
 * Selections are persisted to **`ui_settings.json`** so your preferences are restored on next launch.
 * Delete or edit this file to reset the UI settings.
 
