@@ -412,6 +412,9 @@ def load_summary_for_ui(tid: str, sid: str):
 def save_transcript_text(tid: str, text: str):
     if not tid:
         return "No transcript selected."
+    path = _transcript_json_path(tid)
+    if not os.path.exists(path):
+        return "Cannot create new transcription here. Use the transcribe tab."
     rec = load_transcript_record(tid)
     rec["transcript_text"] = text
     save_transcript_record(rec)
@@ -421,13 +424,16 @@ def save_transcript_text(tid: str, text: str):
 def save_summary_text(tid: str, sid: str, text: str):
     if not tid or not sid:
         return "No summary selected."
+    path = _transcript_json_path(tid)
+    if not os.path.exists(path):
+        return "No summary selected."
     rec = load_transcript_record(tid)
     for s in rec.get("summaries", []):
         if s["id"] == sid:
             s["content"] = text
-            break
-    save_transcript_record(rec)
-    return "Summary saved."
+            save_transcript_record(rec)
+            return "Summary saved."
+    return "No summary selected."
 
 
 def delete_summary(tid: str, sid: str):
@@ -494,12 +500,12 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
             summary_md = gr.Markdown(strings["summary_md"])
             transcript_id_state = gr.State("")
         with gr.TabItem(strings["tab_transcriptions"]) as tab_hist:
-            trans_list = gr.Dropdown(list_transcript_ids(), label=strings["history_selector"])
+            trans_list = gr.Dropdown(list_transcript_ids(), label=strings["history_selector"], allow_custom_value=False)
             transcript_hist = gr.Textbox(label=strings["history_transcript_label"], lines=10)
             with gr.Row():
                 btn_hist_save = gr.Button(strings["btn_save_transcription"])
                 btn_hist_delete = gr.Button(strings["btn_delete_transcription"])
-            summary_list = gr.Dropdown([], label=strings["history_summary_selector"])
+            summary_list = gr.Dropdown([], label=strings["history_summary_selector"], allow_custom_value=False)
             summary_hist = gr.Textbox(label=strings["history_summary_label"], lines=10)
             with gr.Row():
                 btn_sum_save = gr.Button(strings["btn_save_summary"])
@@ -531,6 +537,11 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
         inputs=[transcript, template_use, transcript_id_state],
         outputs=[status_sum, summary_md, summary_list],
     )
+
+    def refresh_transcript_ids():
+        return gr.update(choices=list_transcript_ids())
+
+    tab_hist.select(fn=refresh_transcript_ids, outputs=[trans_list])
 
     trans_list.change(
         fn=load_transcript_for_ui,
