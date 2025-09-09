@@ -27,10 +27,10 @@
   "history_transcript_label": "Transcription",
   "history_summary_selector": "Summaries",
   "history_summary_label": "Summary",
-  "btn_save_transcription": "\ud83d\udcbe Save transcription",
-  "btn_delete_transcription": "\ud83d\uddd1\ufe0f Delete transcription",
-  "btn_save_summary": "\ud83d\udcbe Save summary",
-  "btn_delete_summary": "\ud83d\uddd1\ufe0f Delete summary",
+  "btn_save_transcription": "💾 Save transcription",
+  "btn_delete_transcription": "🗑️ Delete transcription",
+  "btn_save_summary": "💾 Save summary",
+  "btn_delete_summary": "🗑️ Delete summary",
   "history_status": "Status",
   "template_name": "模板名称",
   "template_content": "模板内容",
@@ -41,5 +41,9 @@
   "options_theme": "主题",
   "btn_save_options": "保存选项",
   "options_status": "选项状态",
-  "options_saved": "选项已保存。重新加载页面以应用主题。"
+  "options_saved": "选项已保存。重新加载页面以应用主题。",
+  "history_table_col_id": "ID",
+  "history_table_col_transcript": "转录",
+  "history_table_col_reports": "报告",
+  "history_table_col_edit": "编辑"
 }

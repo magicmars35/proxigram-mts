@@ -27,10 +27,10 @@
   "history_transcript_label": "Transcription",
   "history_summary_selector": "Résumés",
   "history_summary_label": "Résumé",
-  "btn_save_transcription": "\ud83d\udcbe Sauvegarder la transcription",
-  "btn_delete_transcription": "\ud83d\uddd1\ufe0f Supprimer la transcription",
-  "btn_save_summary": "\ud83d\udcbe Sauvegarder le résumé",
-  "btn_delete_summary": "\ud83d\uddd1\ufe0f Supprimer le résumé",
+  "btn_save_transcription": "💾 Sauvegarder la transcription",
+  "btn_delete_transcription": "🗑️ Supprimer la transcription",
+  "btn_save_summary": "💾 Sauvegarder le résumé",
+  "btn_delete_summary": "🗑️ Supprimer le résumé",
   "history_status": "Statut",
   "template_name": "Nom du modèle",
   "template_content": "Contenu du modèle",
@@ -41,5 +41,9 @@
   "options_theme": "Thème",
   "btn_save_options": "Enregistrer options",
   "options_status": "Statut des options",
-  "options_saved": "Options enregistrées. Recharger la page pour appliquer le thème."
+  "options_saved": "Options enregistrées. Recharger la page pour appliquer le thème.",
+  "history_table_col_id": "ID",
+  "history_table_col_transcript": "Transcription",
+  "history_table_col_reports": "Rapports",
+  "history_table_col_edit": "Éditer"
 }
