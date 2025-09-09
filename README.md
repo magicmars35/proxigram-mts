@@ -9,6 +9,7 @@ A tiny Gradio app that records **from your browser microphone** or **uploads an 
 > * Flexible output: **text / srt / json**.
 > * Built‑in **prompt template CRUD** persisted to `prompt_templates.json` and used as **system prompt** for LM Studio.
 > * Persistent **UI options** (language 🇬🇧/🇫🇷 and light/dark theme) saved to `ui_settings.json`.
+> * New **Transcriptions** tab with full CRUD to revisit transcripts and their summaries.
 
 ---
 
