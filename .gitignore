@@ -1,4 +1,5 @@
 venv/
-transcripts/
+transcripts/*
+!transcripts/.gitkeep
 models/
 .env

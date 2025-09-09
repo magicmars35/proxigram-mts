@@ -31,7 +31,7 @@ import os
 import json
 import subprocess
 from datetime import datetime
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 import gradio as gr
 import requests
@@ -51,6 +51,63 @@ WHISPER_MODEL_PATH = os.getenv("WHISPER_MODEL_PATH", "./models/ggml-large-v3-tur
 WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "fr")
 
 os.makedirs("transcripts", exist_ok=True)
+
+# ----------------------
+# Transcripts store
+# ----------------------
+
+TRANSCRIPTS_DIR = "transcripts"
+
+
+def _transcript_json_path(tid: str) -> str:
+    return os.path.join(TRANSCRIPTS_DIR, f"{tid}.json")
+
+
+def list_transcript_ids() -> List[str]:
+    if not os.path.isdir(TRANSCRIPTS_DIR):
+        return []
+    ids = [os.path.splitext(f)[0] for f in os.listdir(TRANSCRIPTS_DIR) if f.endswith(".json")]
+    return sorted(ids, reverse=True)
+
+
+def load_transcript_record(tid: str) -> Dict:
+    path = _transcript_json_path(tid)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"id": tid, "transcript_text": "", "transcript_file": "", "summaries": []}
+
+
+def save_transcript_record(rec: Dict):
+    os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
+    path = _transcript_json_path(rec["id"])
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(rec, f, ensure_ascii=False, indent=2)
+
+
+def record_new_transcription(text: str, rel_path: str) -> str:
+    tid = os.path.splitext(os.path.basename(rel_path))[0]
+    rec = {
+        "id": tid,
+        "created_at": datetime.now().isoformat(),
+        "transcript_text": text,
+        "transcript_file": rel_path,
+        "summaries": [],
+    }
+    save_transcript_record(rec)
+    return tid
+
+
+def add_summary_to_transcript(tid: str, template_name: str, content: str) -> str:
+    rec = load_transcript_record(tid)
+    sid = f"summary_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+    rec.setdefault("summaries", []).append({
+        "id": sid,
+        "template": template_name,
+        "content": content,
+    })
+    save_transcript_record(rec)
+    return sid
 
 # ----------------------
 # Prompt templates
@@ -288,27 +345,120 @@ import traceback
 def do_transcribe(audio_path, language, fmt, preroll_ms, vad_enabled, vad_model_path, vad_threshold, vad_min_speech_ms, vad_min_silence_ms, queue_ms):
     try:
         if not audio_path or not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
-            return "No or empty file. Please record/upload again.", "", ""
+            return "No or empty file. Please record/upload again.", "", "", "", gr.update(choices=list_transcript_ids())
         text, out_rel = run_ffmpeg_whisper_transcribe(
             audio_path=audio_path, language=language, fmt=fmt, preroll_ms=preroll_ms,
             vad_enabled=vad_enabled, vad_model_path=vad_model_path, vad_threshold=vad_threshold,
             vad_min_speech_ms=vad_min_speech_ms, vad_min_silence_ms=vad_min_silence_ms, queue_ms=queue_ms
         )
-        return f"Transcription OK ({len(text)} chars)", text, out_rel
+        tid = record_new_transcription(text, out_rel)
+        return (
+            f"Transcription OK ({len(text)} chars)",
+            text,
+            out_rel,
+            tid,
+            gr.update(choices=list_transcript_ids(), value=tid),
+        )
     except Exception as e:
         tb = "".join(traceback.format_exception_only(type(e), e)).strip()
-        return f"⚠️ Transcription error: {tb}", "", ""
+        return f"⚠️ Transcription error: {tb}", "", "", "", gr.update(choices=list_transcript_ids())
 
-def do_summarize(transcript: str, template_name: str):
+
+def do_summarize(transcript: str, template_name: str, transcript_id: str):
     try:
         if not transcript or not transcript.strip():
-            return "No transcription to summarize.", ""
+            return "No transcription to summarize.", "", gr.update()
         system_prompt = get_template(template_name)
         md = call_lmstudio_summary(transcript, system_prompt)
-        return f"Summary OK ({len(md)} chars)", md
+        sid = ""
+        if transcript_id:
+            sid = add_summary_to_transcript(transcript_id, template_name, md)
+            rec = load_transcript_record(transcript_id)
+            ids = [s["id"] for s in rec.get("summaries", [])]
+            drop = gr.update(choices=ids, value=sid)
+        else:
+            drop = gr.update()
+        return f"Summary OK ({len(md)} chars)", md, drop
     except Exception as e:
         tb = "".join(traceback.format_exception_only(type(e), e)).strip()
-        return f"⚠️ Summary error: {tb}", ""
+        return f"⚠️ Summary error: {tb}", "", gr.update()
+
+
+# ----------------------
+# Transcriptions CRUD helpers
+# ----------------------
+
+def load_transcript_for_ui(tid: str):
+    if not tid:
+        return "", gr.update(choices=[]), ""
+    rec = load_transcript_record(tid)
+    sums = rec.get("summaries", [])
+    ids = [s["id"] for s in sums]
+    first_content = sums[0]["content"] if sums else ""
+    first_id = ids[0] if ids else None
+    return rec.get("transcript_text", ""), gr.update(choices=ids, value=first_id), first_content
+
+
+def load_summary_for_ui(tid: str, sid: str):
+    if not tid or not sid:
+        return ""
+    rec = load_transcript_record(tid)
+    for s in rec.get("summaries", []):
+        if s["id"] == sid:
+            return s.get("content", "")
+    return ""
+
+
+def save_transcript_text(tid: str, text: str):
+    if not tid:
+        return "No transcript selected."
+    rec = load_transcript_record(tid)
+    rec["transcript_text"] = text
+    save_transcript_record(rec)
+    return "Transcription saved."
+
+
+def save_summary_text(tid: str, sid: str, text: str):
+    if not tid or not sid:
+        return "No summary selected."
+    rec = load_transcript_record(tid)
+    for s in rec.get("summaries", []):
+        if s["id"] == sid:
+            s["content"] = text
+            break
+    save_transcript_record(rec)
+    return "Summary saved."
+
+
+def delete_summary(tid: str, sid: str):
+    if not tid or not sid:
+        return gr.update(), "", "No summary selected."
+    rec = load_transcript_record(tid)
+    rec["summaries"] = [s for s in rec.get("summaries", []) if s["id"] != sid]
+    save_transcript_record(rec)
+    ids = [s["id"] for s in rec.get("summaries", [])]
+    content = rec["summaries"][0]["content"] if ids else ""
+    drop = gr.update(choices=ids, value=(ids[0] if ids else None))
+    return drop, content, "Summary deleted."
+
+
+def delete_transcription(tid: str):
+    if not tid:
+        return gr.update(choices=list_transcript_ids()), "", gr.update(), "", "No transcript selected."
+    rec = load_transcript_record(tid)
+    path = _transcript_json_path(tid)
+    if os.path.exists(path):
+        os.remove(path)
+    tfile = rec.get("transcript_file")
+    if tfile and os.path.exists(tfile):
+        os.remove(tfile)
+    return (
+        gr.update(choices=list_transcript_ids(), value=None),
+        "",
+        gr.update(choices=[], value=None),
+        "",
+        "Transcription deleted.",
+    )
 
 
 # ----------------------
@@ -342,6 +492,19 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
             btn_summarize = gr.Button(strings["btn_summarize"])
             status_sum = gr.Textbox(label=strings["summary_status"], interactive=False)
             summary_md = gr.Markdown(strings["summary_md"])
+            transcript_id_state = gr.State("")
+        with gr.TabItem(strings["tab_transcriptions"]) as tab_hist:
+            trans_list = gr.Dropdown(list_transcript_ids(), label=strings["history_selector"])
+            transcript_hist = gr.Textbox(label=strings["history_transcript_label"], lines=10)
+            with gr.Row():
+                btn_hist_save = gr.Button(strings["btn_save_transcription"])
+                btn_hist_delete = gr.Button(strings["btn_delete_transcription"])
+            summary_list = gr.Dropdown([], label=strings["history_summary_selector"])
+            summary_hist = gr.Textbox(label=strings["history_summary_label"], lines=10)
+            with gr.Row():
+                btn_sum_save = gr.Button(strings["btn_save_summary"])
+                btn_sum_delete = gr.Button(strings["btn_delete_summary"])
+            history_status = gr.Textbox(label=strings["history_status"], interactive=False)
         with gr.TabItem(strings["tab_templates"]) as tab_templates:
             tpl_dropdown = gr.Dropdown(list_templates(), value=DEFAULT_TEMPLATE_NAME, label=strings["template_selector"])
             tpl_name = gr.Textbox(value=DEFAULT_TEMPLATE_NAME, label=strings["template_name"])
@@ -360,13 +523,49 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
     btn_transcribe.click(
         fn=do_transcribe,
         inputs=[audio, lang, fmt, preroll, vad_enable, vad_model, vad_thr, vad_min_speech, vad_min_silence, queue],
-        outputs=[status_trans, transcript, transcript_file],
+        outputs=[status_trans, transcript, transcript_file, transcript_id_state, trans_list],
     )
 
     btn_summarize.click(
         fn=do_summarize,
-        inputs=[transcript, template_use],
-        outputs=[status_sum, summary_md],
+        inputs=[transcript, template_use, transcript_id_state],
+        outputs=[status_sum, summary_md, summary_list],
+    )
+
+    trans_list.change(
+        fn=load_transcript_for_ui,
+        inputs=[trans_list],
+        outputs=[transcript_hist, summary_list, summary_hist],
+    )
+
+    summary_list.change(
+        fn=load_summary_for_ui,
+        inputs=[trans_list, summary_list],
+        outputs=[summary_hist],
+    )
+
+    btn_hist_save.click(
+        fn=save_transcript_text,
+        inputs=[trans_list, transcript_hist],
+        outputs=[history_status],
+    )
+
+    btn_hist_delete.click(
+        fn=delete_transcription,
+        inputs=[trans_list],
+        outputs=[trans_list, transcript_hist, summary_list, summary_hist, history_status],
+    )
+
+    btn_sum_save.click(
+        fn=save_summary_text,
+        inputs=[trans_list, summary_list, summary_hist],
+        outputs=[history_status],
+    )
+
+    btn_sum_delete.click(
+        fn=delete_summary,
+        inputs=[trans_list, summary_list],
+        outputs=[summary_list, summary_hist, history_status],
     )
 
     def _load_template(name):
@@ -424,6 +623,7 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
         s = STRINGS[lang_choice]
         return (
             gr.update(label=s["tab_transcribe"]),
+            gr.update(label=s["tab_transcriptions"]),
             gr.update(label=s["tab_templates"]),
             gr.update(label=s["tab_options"]),
             gr.update(value=s["intro_md"]),
@@ -446,6 +646,15 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
             gr.update(value=s["btn_summarize"]),
             gr.update(label=s["summary_status"]),
             gr.update(value=s["summary_md"]),
+            gr.update(choices=list_transcript_ids(), label=s["history_selector"]),
+            gr.update(label=s["history_transcript_label"]),
+            gr.update(value=s["btn_save_transcription"]),
+            gr.update(value=s["btn_delete_transcription"]),
+            gr.update(label=s["history_summary_selector"]),
+            gr.update(label=s["history_summary_label"]),
+            gr.update(value=s["btn_save_summary"]),
+            gr.update(value=s["btn_delete_summary"]),
+            gr.update(label=s["history_status"]),
             gr.update(label=s["template_selector"]),
             gr.update(label=s["template_name"]),
             gr.update(label=s["template_content"]),
@@ -463,6 +672,7 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
         inputs=[lang_selector],
         outputs=[
             tab_trans,
+            tab_hist,
             tab_templates,
             tab_options,
             intro_md,
@@ -485,6 +695,15 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
             btn_summarize,
             status_sum,
             summary_md,
+            trans_list,
+            transcript_hist,
+            btn_hist_save,
+            btn_hist_delete,
+            summary_list,
+            summary_hist,
+            btn_sum_save,
+            btn_sum_delete,
+            history_status,
             tpl_dropdown,
             tpl_name,
             tpl_content,
