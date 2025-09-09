@@ -741,7 +741,7 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
     )
 
 if __name__ == "__main__":
-    @demo.server_app.exception_handler(LocalProtocolError)
+    @demo.app.exception_handler(LocalProtocolError)
     async def _handle_protocol_error(request, exc):
         return PlainTextResponse("Incomplete request.", status_code=400)
 
