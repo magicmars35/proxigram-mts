@@ -456,8 +456,8 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
         choices = list_templates()
         return (
             f"Template '{name}' saved.",
-            gr.Dropdown.update(choices=choices, value=name),
-            gr.Dropdown.update(choices=choices, value=name),
+            gr.update(choices=choices, value=name),
+            gr.update(choices=choices, value=name),
         )
 
     btn_tpl_save.click(
@@ -471,20 +471,20 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
             choices = list_templates()
             return (
                 "Cannot delete default template.",
-                gr.Dropdown.update(choices=choices, value=DEFAULT_TEMPLATE_NAME),
+                gr.update(choices=choices, value=DEFAULT_TEMPLATE_NAME),
                 DEFAULT_TEMPLATE_NAME,
                 get_template(DEFAULT_TEMPLATE_NAME),
-                gr.Dropdown.update(choices=choices, value=DEFAULT_TEMPLATE_NAME),
+                gr.update(choices=choices, value=DEFAULT_TEMPLATE_NAME),
             )
         delete_template(name)
         choices = list_templates()
         new_default = DEFAULT_TEMPLATE_NAME
         return (
             f"Template '{name}' deleted.",
-            gr.Dropdown.update(choices=choices, value=new_default),
+            gr.update(choices=choices, value=new_default),
             new_default,
             get_template(new_default),
-            gr.Dropdown.update(choices=choices, value=new_default),
+            gr.update(choices=choices, value=new_default),
         )
 
     btn_tpl_delete.click(
