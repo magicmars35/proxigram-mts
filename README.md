@@ -35,7 +35,7 @@ A tiny Gradio app that records **from your browser microphone** or **uploads an 
 Python packages:
 
 ```bash
-pip install gradio requests python-dotenv
+pip install -r requirements.txt
 ```
 
 > **Privacy**: All audio processing happens locally via FFmpeg; the transcript is summarized by your local LM Studio instance.
@@ -49,7 +49,7 @@ pip install gradio requests python-dotenv
 3. **Install deps**:
 
    ```bash
-   pip install -r requirements.txt  # or: pip install gradio requests python-dotenv
+   pip install -r requirements.txt
    ```
 4. **Place a Whisper.cpp model** under `./models/`, e.g. `./models/ggml-large-v3-turbo.bin`.
 5. **Ensure FFmpeg 8** supports the `whisper` filter (see Requirements above).
