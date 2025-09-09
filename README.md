@@ -29,7 +29,7 @@ A tiny Gradio app that records **from your browser microphone** or **uploads an 
 
   * Linux/macOS: `ffmpeg -hide_banner -filters | grep whisper`
   * Windows: `ffmpeg -hide_banner -filters | findstr whisper`
-* **LM Studio** running in local server/developer mode (OpenAI‑compatible), usually at `http://localhost:1234`.
+* **LM Studio** running in local server/developer mode (OpenAI‑compatible), or Ollama,  usually at `http://localhost:1234`.
 * **Whisper.cpp ggml model** file(s), e.g. `ggml-large-v3-turbo.bin`.
 
 Python packages:
@@ -45,15 +45,29 @@ pip install -r requirements.txt
 ## Installation
 
 1. **Clone** the repo and enter it.
-2. (Optional but recommended) **Create a venv** and activate it.
-3. **Install deps**:
+   ```bash
+   git clone https://github.com/magicmars35/AutoTranscriptReport
+   cd AutoTranscriptReport
+   ```
+
+   
+3. (Optional but recommended) **Create a venv** and activate it.
+
+   For Windows :
+   
+   ```bash
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+   
+5. **Install deps**:
 
    ```bash
    pip install -r requirements.txt
    ```
-4. **Place a Whisper.cpp model** under `./models/`, e.g. `./models/ggml-large-v3-turbo.bin`.
-5. **Ensure FFmpeg 8** supports the `whisper` filter (see Requirements above).
-6. **Start LM Studio** (or Ollama) in server mode (Developer tab → Start server). Default base URL is `http://localhost:1234` and the API path is usually `/v1/chat/completions`.
+6. **Place a Whisper.cpp model** under `./models/`, e.g. `./models/ggml-large-v3-turbo.bin`.
+7. **Ensure FFmpeg 8** supports the `whisper` filter (see Requirements above).
+8. **Start LM Studio** (or Ollama) in server mode (Developer tab → Start server). Default base URL is `http://localhost:1234` and the API path is usually `/v1/chat/completions`.
 
 ---
 
