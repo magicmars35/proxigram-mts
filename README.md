@@ -73,7 +73,7 @@ python-dotenv
    ```bash
    pip install -r requirements.txt
    ```
-6. **Place a Whisper.cpp model** under `./models/`, e.g. `./models/ggml-large-v3-turbo.bin`.
+6. **Place a Whisper.cpp model** under `./models/`, e.g. `./models/ggml-large-v3-turbo.bin`. Models can be found here : https://huggingface.co/ggerganov/whisper.cpp/tree/main
 7. **Ensure FFmpeg 8** supports the `whisper` filter (see Requirements above).
 8. **Start LM Studio** (or Ollama) in server mode (Developer tab → Start server). Default base URL is `http://localhost:1234` and the API path is usually `/v1/chat/completions`.
 
@@ -167,6 +167,7 @@ Place your chosen **Whisper.cpp ggml** model file under `./models` and point `WH
 * `ggml-small.bin` (\~466 MB): fast and decent for French.
 
 All models are multilingual unless the filename ends with `.en`.
+Models can be found here : https://huggingface.co/ggerganov/whisper.cpp/tree/main
 
 ---
 
