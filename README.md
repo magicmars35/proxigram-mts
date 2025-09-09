@@ -84,7 +84,7 @@ Defaults are the same as the example above. You can also edit the constants at t
 ## Run
 
 ```bash
-python gradio_transcripteur_compte_rendu.py
+python app.py
 ```
 
 Gradio will print a local URL (e.g. `http://127.0.0.1:7860`).
