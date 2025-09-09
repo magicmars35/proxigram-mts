@@ -35,7 +35,13 @@ A tiny Gradio app that records **from your browser microphone** or **uploads an 
 Python packages:
 
 ```bash
-pip install -r requirements.txt
+gradio>=4.44.1
+uvicorn>=0.30
+starlette>=0.37
+anyio>=4.4
+h11>=0.14
+httpx>=0.27
+httpcore>=1.0
 ```
 
 > **Privacy**: All audio processing happens locally via FFmpeg; the transcript is summarized by your local LM Studio instance.
