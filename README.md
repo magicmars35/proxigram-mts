@@ -168,4 +168,4 @@ All models are multilingual unless the filename ends with `.en`.
 
 ## License
 
-MIT (or your preferred license). See `LICENSE`.
+MIT
