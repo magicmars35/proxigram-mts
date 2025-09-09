@@ -1,4 +1,5 @@
-# Transcripteur & Résumeur de Réunions Gradio (FFmpeg v8 Whisper + LM Studio)
+# PROXIGRAM - MTS
+Transcripteur & Résumeur de Réunions Gradio (FFmpeg v8 Whisper + LM Studio)
 
 Une petite application Gradio qui **enregistre depuis le microphone de votre navigateur** ou **importe un fichier audio**, le transcrit **localement** à l’aide de **FFmpeg v8 et du filtre `whisper`** (avec des modèles Whisper.cpp), puis envoie la transcription à un **LLM local (LM Studio)** pour produire des **comptes rendus de réunion** propres et structurés au format Markdown.
 
