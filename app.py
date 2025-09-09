@@ -496,9 +496,9 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
     def change_language(lang_choice):
         s = STRINGS[lang_choice]
         return (
-            tab_trans.update(label=s["tab_transcribe"]),
-            tab_templates.update(label=s["tab_templates"]),
-            tab_options.update(label=s["tab_options"]),
+            gr.update(label=s["tab_transcribe"]),
+            gr.update(label=s["tab_templates"]),
+            gr.update(label=s["tab_options"]),
             intro_md.update(value=s["intro_md"]),
             audio.update(label=s["audio_label"]),
             lang.update(label=s["whisper_language"]),
