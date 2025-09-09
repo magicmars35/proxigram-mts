@@ -1,4 +1,5 @@
-# Gradio Meeting Transcriber & Summarizer (FFmpeg v8 Whisper + LM Studio)
+# PROXIGRAM - MTS
+Meeting Transcriber & Summarizer (FFmpeg v8 Whisper + LM Studio / Ollama )
 
 [🇫🇷 Lire ce README en français](README.fr.md)
 
