@@ -18,7 +18,7 @@ A tiny Gradio app that records **from your browser microphone** or **uploads an 
 
    * Optional **pre‑roll** (adds a short silence at the start) and **VAD**.
    * Audio is normalized to **WAV 16 kHz mono** for reliability.
-3. **LM Studio** (OpenAI‑compatible API) → structured Markdown meeting minutes.
+3. **LM Studio** (OpenAI‑compatible API) → structured Markdown meeting minutes. You can use Ollama too.
 
 ---
 
@@ -53,7 +53,7 @@ pip install -r requirements.txt
    ```
 4. **Place a Whisper.cpp model** under `./models/`, e.g. `./models/ggml-large-v3-turbo.bin`.
 5. **Ensure FFmpeg 8** supports the `whisper` filter (see Requirements above).
-6. **Start LM Studio** in server mode (Developer tab → Start server). Default base URL is `http://localhost:1234` and the API path is usually `/v1/chat/completions`.
+6. **Start LM Studio** (or Ollama) in server mode (Developer tab → Start server). Default base URL is `http://localhost:1234` and the API path is usually `/v1/chat/completions`.
 
 ---
 
