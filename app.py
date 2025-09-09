@@ -1,29 +1,28 @@
-
 """
-Gradio – Dictaphone/Uploader → Transcription (FFmpeg v8 Whisper) → Résumé CR via LM Studio (Gradio 4.x)
+Gradio – Dictaphone/Uploader → Transcription (FFmpeg v8 Whisper) → Meeting Minutes Summary via LM Studio (Gradio 4.x)
 
-Correctifs qualité
-------------------
-- **Début manquant / silences** : sur certains fichiers, les premiers mots peuvent être mangés si le modèle démarre trop vite ou si le VAD est trop agressif.
-  - Ajout d’un **pré‑roll** (padding de silence en tête) via `adelay=…` (par défaut 250 ms) pour capturer les débuts de phrase.
-  - **VAD (facultatif)** : possibilité d’activer un modèle VAD Silero et d’ajuster seuil/durations. Par défaut **désactivé** pour ne pas couper les blancs.
-  - Choix du **format de sortie** `text | srt | json` (par défaut `srt` pour vérifier visuellement les segments + horodatages).
+Quality Fixes
+-------------
+- **Missing start / silences**: on some files, the first words can be cut if the model starts too quickly or if VAD is too aggressive.
+  - Added a **pre‑roll** (head silence padding) via `adelay=…` (default 250 ms) to capture sentence beginnings.
+  - **VAD (optional)**: possibility to enable a Silero VAD model and adjust threshold/durations. Default is **disabled** to avoid cutting silences.
+  - Choice of **output format** `text | srt | json` (default `srt` to visually check segments + timestamps).
 
-Références
+References
 ----------
-- Options officielles du filtre `whisper` (modèle, destination, format, VAD : `vad_model`, `vad_threshold`, `vad_min_*`, `queue`). citeturn2view0
-- Présentation des options `destination`, `format` et VAD dans des exemples récents. citeturn1search11turn0search0
-- `adelay=…:all=1` (ajout de silence en tête sur tous les canaux). citeturn3search16
+- Official options for the `whisper` filter (model, destination, format, VAD: `vad_model`, `vad_threshold`, `vad_min_*`, `queue`).
+- Presentation of the `destination`, `format`, and VAD options in recent examples.
+- `adelay=…:all=1` (adds silence at the start of all channels).
 
-Prérequis
----------
+Requirements
+------------
 - Python 3.10+
 - `pip install gradio requests python-dotenv`
-- FFmpeg 8.0+ **compilé avec `--enable-whisper`** + `whisper.cpp` présent
-- LM Studio en mode serveur local (OpenAI-compatible) – http://localhost:1234
+- FFmpeg 8.0+ **compiled with `--enable-whisper`** + `whisper.cpp` available
+- LM Studio running in local server mode (OpenAI-compatible) – http://localhost:1234
 
-Lancement
----------
+Run
+---
 python gradio_transcripteur_compte_rendu.py
 
 """
@@ -39,7 +38,7 @@ import requests
 from dotenv import load_dotenv
 
 # ----------------------
-# Config (.env facultatif)
+# Config (.env optional)
 # ----------------------
 load_dotenv()
 LMSTUDIO_BASE_URL = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234")
@@ -54,7 +53,7 @@ WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "fr")
 os.makedirs("transcripts", exist_ok=True)
 
 # ----------------------
-# Utilitaires
+# Utilities
 # ----------------------
 
 def ffmpeg_has_whisper() -> bool:
@@ -87,20 +86,20 @@ def run_ffmpeg_whisper_transcribe(
     vad_min_silence_ms: int = 500,
     queue_ms: int = 3000,
 ) -> Tuple[str, str]:
-    """Transcrit `audio_path` via FFmpeg+Whisper.
-    Retourne (texte_ou_sous-titres, chemin_fichier_sortie_relatif).
+    """Transcribe `audio_path` via FFmpeg+Whisper.
+    Returns (text_or_subtitles, relative_output_file_path).
     """
     if not os.path.isfile(audio_path):
-        raise FileNotFoundError(f"Fichier introuvable: {audio_path}")
+        raise FileNotFoundError(f"File not found: {audio_path}")
 
     if not ffmpeg_has_whisper():
-        raise RuntimeError("FFmpeg ne comporte pas le filtre 'whisper'. Build FFmpeg 8 avec --enable-whisper requis.")
+        raise RuntimeError("FFmpeg does not include the 'whisper' filter. Build FFmpeg 8 with --enable-whisper required.")
 
-    # Fichier de sortie selon format demandé
+    # Output file depending on requested format
     ext = "txt" if fmt == "text" else ("srt" if fmt == "srt" else "json")
     out_rel = make_out_rel(ext)
 
-    # Options whisper
+    # Whisper options
     whisper_opts = [
         f"model={sanitize_path(WHISPER_MODEL_PATH)}",
         f"language={language}",
@@ -109,7 +108,7 @@ def run_ffmpeg_whisper_transcribe(
         f"queue={queue_ms}ms",
     ]
 
-    # VAD facultatif (Silero). À activer uniquement si un modèle est fourni.
+    # Optional VAD (Silero). Activate only if a model is provided.
     if vad_enabled and vad_model_path:
         whisper_opts.append(f"vad_model={sanitize_path(vad_model_path)}")
         whisper_opts.append(f"vad_threshold={vad_threshold}")
@@ -118,7 +117,7 @@ def run_ffmpeg_whisper_transcribe(
 
     whisper_filter = "whisper=" + ":".join(whisper_opts)
 
-    # Chaîne audio : pré‑roll (adelay) pour capturer le tout début + resample pour stabilité
+    # Audio chain: pre‑roll (adelay) to capture the very beginning + resample for stability
     af_chain = []
     if preroll_ms and preroll_ms > 0:
         af_chain.append(f"adelay={int(preroll_ms)}:all=1")
@@ -144,7 +143,7 @@ def run_ffmpeg_whisper_transcribe(
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
         raise RuntimeError(
-            f"""Échec FFmpeg Whisper ({proc.returncode})
+            f"""FFmpeg Whisper failed ({proc.returncode})
     STDERR:
     {proc.stderr}
     CMD:
@@ -153,10 +152,9 @@ def run_ffmpeg_whisper_transcribe(
 
     if not os.path.exists(out_rel):
         raise FileNotFoundError(
-            f"""Sortie non trouvée: {out_rel}
-    Vérifiez modèle/chemins et options du filtre."""
+            f"""Output not found: {out_rel}
+    Check model/paths and filter options."""
         )
-
 
     with open(out_rel, "r", encoding="utf-8") as f:
         text = f.read().strip()
@@ -167,8 +165,8 @@ def run_ffmpeg_whisper_transcribe(
 def call_lmstudio_summary(transcript: str) -> str:
     url = LMSTUDIO_BASE_URL.rstrip("/") + LMSTUDIO_API_PATH
     system_prompt = (
-        "Tu es un assistant spécialisé en comptes rendus de réunion. "
-        "À partir de la transcription (peut contenir des horodatages), génère un CR clair en français (Markdown) : Contexte, Ordre du jour, Décisions, Actions (Responsable→Action→Échéance), Prochaines étapes, Citations, Risques."
+        "You are an assistant specialized in meeting minutes. "
+        "From the transcript (may contain timestamps), generate a clear report in French (Markdown) with: Context, Agenda, Decisions, Actions (Owner→Action→Deadline), Next steps, Quotes, Risks."
     )
 
     messages = [
@@ -185,12 +183,12 @@ def call_lmstudio_summary(transcript: str) -> str:
     return data["choices"][0]["message"]["content"].strip()
 
 # ----------------------
-# Callbacks Gradio
+# Gradio Callbacks
 # ----------------------
 
 def do_transcribe(audio_path: str, language: str, fmt: str, preroll_ms: int, vad_enabled: bool, vad_model_path: str, vad_threshold: float, vad_min_speech_ms: int, vad_min_silence_ms: int, queue_ms: int):
     if not audio_path:
-        return "Aucun fichier fourni.", "", ""
+        return "No file provided.", "", ""
     text, out_rel = run_ffmpeg_whisper_transcribe(
         audio_path=audio_path,
         language=language or WHISPER_LANGUAGE,
@@ -203,57 +201,57 @@ def do_transcribe(audio_path: str, language: str, fmt: str, preroll_ms: int, vad
         vad_min_silence_ms=vad_min_silence_ms,
         queue_ms=queue_ms,
     )
-    return f"Transcription OK ({len(text)} caractères)", text, out_rel
+    return f"Transcription OK ({len(text)} characters)", text, out_rel
 
 
 def do_summarize(transcript: str):
     if not transcript or not transcript.strip():
-        return "Pas de transcription à résumer.", ""
+        return "No transcription to summarize.", ""
     md = call_lmstudio_summary(transcript)
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    return f"Résumé généré ({len(md)} caractères) – {stamp}", md
+    return f"Summary generated ({len(md)} characters) – {stamp}", md
 
 # ----------------------
 # UI (Gradio 4.x)
 # ----------------------
-with gr.Blocks(title="Transcripteur → CR Réunion (FFmpeg Whisper)") as demo:
+with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)") as demo:
     gr.Markdown(
         """
-        # 🎙️ Transcripteur → CR de réunion
-        1) **Enregistrer / Uploader** un audio (WAV/MP3/M4A).  
-        2) **Transcrire** (FFmpeg v8 + Whisper) – format par défaut **SRT** pour voir les horodatages.  
-        3) **Résumer** (LM Studio) → **CR Markdown**.
+        # 🎙️ Transcriber → Meeting Minutes
+        1) **Record / Upload** an audio (WAV/MP3/M4A).  
+        2) **Transcribe** (FFmpeg v8 + Whisper) – default format **SRT** to see timestamps.  
+        3) **Summarize** (LM Studio) → **Markdown report**.
         
-        *Astuce* : si le **début est tronqué**, augmentez le **pré‑roll** (ex. 300–500 ms) ou laissez le **VAD désactivé**.
+        *Tip*: if the **start is truncated**, increase **pre‑roll** (e.g., 300–500 ms) or keep **VAD disabled**.
         """
     )
 
     with gr.Row():
-        audio = gr.Audio(type="filepath", label="🎙️ Enregistrer ou Uploader")
-        lang = gr.Textbox(label="Langue Whisper", value=WHISPER_LANGUAGE)
-        fmt = gr.Dropdown(choices=["text", "srt", "json"], value="srt", label="Format sortie")
+        audio = gr.Audio(type="filepath", label="🎙️ Record or Upload")
+        lang = gr.Textbox(label="Whisper Language", value=WHISPER_LANGUAGE)
+        fmt = gr.Dropdown(choices=["text", "srt", "json"], value="srt", label="Output format")
 
-    with gr.Accordion("Paramètres avancés", open=False):
-        preroll = gr.Slider(0, 2000, value=250, step=50, label="Pré‑roll (ms) – padding début")
-        queue = gr.Slider(200, 20000, value=3000, step=100, label="Taille de file (queue) pour VAD (ms)")
-        vad_enable = gr.Checkbox(False, label="Activer VAD (Silero) – peut couper les blancs si mal réglé")
+    with gr.Accordion("Advanced settings", open=False):
+        preroll = gr.Slider(0, 2000, value=250, step=50, label="Pre‑roll (ms) – start padding")
+        queue = gr.Slider(200, 20000, value=3000, step=100, label="Queue size for VAD (ms)")
+        vad_enable = gr.Checkbox(False, label="Enable VAD (Silero) – may cut silences if misconfigured")
         with gr.Row():
-            vad_model = gr.Textbox(label="Chemin modèle VAD (ex: ./models/silero-v5.1.2-ggml.bin)", value="")
-            vad_thr = gr.Slider(0.0, 1.0, value=0.5, step=0.05, label="Seuil VAD")
+            vad_model = gr.Textbox(label="VAD model path (e.g., ./models/silero-v5.1.2-ggml.bin)", value="")
+            vad_thr = gr.Slider(0.0, 1.0, value=0.5, step=0.05, label="VAD threshold")
         with gr.Row():
-            vad_min_speech = gr.Slider(20, 2000, value=100, step=20, label="Durée minimale parole (ms)")
-            vad_min_silence = gr.Slider(0, 2000, value=500, step=20, label="Durée minimale silence (ms)")
+            vad_min_speech = gr.Slider(20, 2000, value=100, step=20, label="Minimum speech duration (ms)")
+            vad_min_silence = gr.Slider(0, 2000, value=500, step=20, label="Minimum silence duration (ms)")
 
-    btn_transcribe = gr.Button("📝 Transcrire")
-    status_trans = gr.Textbox(label="Statut transcription", interactive=False)
+    btn_transcribe = gr.Button("📝 Transcribe")
+    status_trans = gr.Textbox(label="Transcription status", interactive=False)
     transcript = gr.Textbox(label="Transcription / SRT / JSON", lines=16)
-    transcript_file = gr.Textbox(label="Fichier généré", interactive=False)
+    transcript_file = gr.Textbox(label="Generated file", interactive=False)
 
     gr.Markdown("---")
 
-    btn_summarize = gr.Button("🧾 Résumer → CR Markdown")
-    status_sum = gr.Textbox(label="Statut résumé", interactive=False)
-    summary_md = gr.Markdown("(le CR apparaîtra ici)")
+    btn_summarize = gr.Button("🧾 Summarize → Markdown report")
+    status_sum = gr.Textbox(label="Summary status", interactive=False)
+    summary_md = gr.Markdown("(the report will appear here)")
 
     # Wiring
     btn_transcribe.click(
