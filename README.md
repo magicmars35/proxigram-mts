@@ -132,6 +132,10 @@ Gradio will print a local URL (e.g. `http://127.0.0.1:7860`).
    * **Pre‑roll (ms)**: add a short silence at the start so the very first words aren’t cut (try 250–500 ms).
    * **Queue (ms)**: buffering window for VAD; larger values may help stabilize segmentation.
    * **VAD (Silero)**: enable only if you provide a **Silero VAD** ggml model path; otherwise keep it off to preserve natural pauses.
+  
+<img width="1479" height="554" alt="image" src="https://github.com/user-attachments/assets/84e6063f-7024-446e-a4ca-4af1c5162413" />
+
+
 4. Click **Transcribe** → FFmpeg runs the `whisper` filter and writes the transcript file into `./transcripts/`.
 5. Inspect the transcript/SRT/JSON shown in the UI.
 6. Pick or edit a **Prompt Template** and click **Summarize** → LM Studio returns a structured Markdown **meeting minutes**.
