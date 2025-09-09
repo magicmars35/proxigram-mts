@@ -347,7 +347,7 @@ import traceback
 def do_transcribe(audio_path, language, fmt, preroll_ms, vad_enabled, vad_model_path, vad_threshold, vad_min_speech_ms, vad_min_silence_ms, queue_ms):
     try:
         if not audio_path or not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
-            return "No or empty file. Please record/upload again.", "", "", "", gr.update(choices=list_transcript_ids())
+            return "No or empty file. Please record/upload again.", "", "", "", build_transcripts_table()
         text, out_rel = run_ffmpeg_whisper_transcribe(
             audio_path=audio_path, language=language, fmt=fmt, preroll_ms=preroll_ms,
             vad_enabled=vad_enabled, vad_model_path=vad_model_path, vad_threshold=vad_threshold,
@@ -359,11 +359,11 @@ def do_transcribe(audio_path, language, fmt, preroll_ms, vad_enabled, vad_model_
             text,
             out_rel,
             tid,
-            gr.update(choices=list_transcript_ids(), value=tid),
+            build_transcripts_table(),
         )
     except Exception as e:
         tb = "".join(traceback.format_exception_only(type(e), e)).strip()
-        return f"⚠️ Transcription error: {tb}", "", "", "", gr.update(choices=list_transcript_ids())
+        return f"⚠️ Transcription error: {tb}", "", "", "", build_transcripts_table()
 
 
 def do_summarize(transcript: str, template_name: str, transcript_id: str):
@@ -390,15 +390,50 @@ def do_summarize(transcript: str, template_name: str, transcript_id: str):
 # Transcriptions CRUD helpers
 # ----------------------
 
-def load_transcript_for_ui(tid: str):
+def build_transcripts_table() -> List[List[str]]:
+    """Return rows for the transcription history table."""
+    rows: List[List[str]] = []
+    for tid in list_transcript_ids():
+        rows.append([tid, "👁️", "📑", "✏️"])
+    return rows
+
+
+def handle_trans_table_select(evt: gr.SelectData):
+    row, col = evt.index
+    ids = list_transcript_ids()
+    tid = ids[row] if 0 <= row < len(ids) else ""
     if not tid:
-        return "", gr.update(choices=[]), ""
+        return "", gr.update(), gr.update(choices=[]), "", ""
     rec = load_transcript_record(tid)
     sums = rec.get("summaries", [])
-    ids = [s["id"] for s in sums]
+    sum_ids = [s["id"] for s in sums]
     first_content = sums[0]["content"] if sums else ""
-    first_id = ids[0] if ids else None
-    return rec.get("transcript_text", ""), gr.update(choices=ids, value=first_id), first_content
+    first_id = sum_ids[0] if sum_ids else None
+    if col == 1:  # view transcription
+        return (
+            tid,
+            gr.update(value=rec.get("transcript_text", ""), interactive=False),
+            gr.update(choices=sum_ids, value=first_id),
+            first_content,
+            "",
+        )
+    if col == 3:  # edit transcription
+        return (
+            tid,
+            gr.update(value=rec.get("transcript_text", ""), interactive=True),
+            gr.update(choices=sum_ids, value=first_id),
+            first_content,
+            "",
+        )
+    if col == 2:  # view reports
+        return (
+            tid,
+            gr.update(value="", interactive=False),
+            gr.update(choices=sum_ids, value=first_id),
+            first_content,
+            "",
+        )
+    return tid, gr.update(), gr.update(choices=sum_ids, value=first_id), first_content, ""
 
 
 def load_summary_for_ui(tid: str, sid: str):
@@ -452,7 +487,7 @@ def delete_summary(tid: str, sid: str):
 
 def delete_transcription(tid: str):
     if not tid:
-        return gr.update(choices=list_transcript_ids()), "", gr.update(), "", "No transcript selected."
+        return "", build_transcripts_table(), "", gr.update(choices=[]), "", "No transcript selected."
     rec = load_transcript_record(tid)
     path = _transcript_json_path(tid)
     if os.path.exists(path):
@@ -461,7 +496,8 @@ def delete_transcription(tid: str):
     if tfile and os.path.exists(tfile):
         os.remove(tfile)
     return (
-        gr.update(choices=list_transcript_ids(), value=None),
+        "",
+        build_transcripts_table(),
         "",
         gr.update(choices=[], value=None),
         "",
@@ -502,12 +538,23 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
             summary_md = gr.Markdown(strings["summary_md"])
             transcript_id_state = gr.State("")
         with gr.TabItem(strings["tab_transcriptions"]) as tab_hist:
-            trans_list = gr.Dropdown(list_transcript_ids(), label=strings["history_selector"], allow_custom_value=False)
+            trans_table = gr.DataFrame(
+                headers=[
+                    strings["history_table_col_id"],
+                    strings["history_table_col_transcript"],
+                    strings["history_table_col_reports"],
+                    strings["history_table_col_edit"],
+                ],
+                value=build_transcripts_table(),
+                label=strings["history_selector"],
+                interactive=False,
+            )
+            selected_hist_tid = gr.State("")
             transcript_hist = gr.Textbox(label=strings["history_transcript_label"], lines=10)
             with gr.Row():
                 btn_hist_save = gr.Button(strings["btn_save_transcription"])
                 btn_hist_delete = gr.Button(strings["btn_delete_transcription"])
-            summary_list = gr.Dropdown([], label=strings["history_summary_selector"], allow_custom_value=False)
+            summary_list = gr.Radio([], label=strings["history_summary_selector"], interactive=True)
             summary_hist = gr.Textbox(label=strings["history_summary_label"], lines=10)
             with gr.Row():
                 btn_sum_save = gr.Button(strings["btn_save_summary"])
@@ -531,7 +578,7 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
     btn_transcribe.click(
         fn=do_transcribe,
         inputs=[audio, lang, fmt, preroll, vad_enable, vad_model, vad_thr, vad_min_speech, vad_min_silence, queue],
-        outputs=[status_trans, transcript, transcript_file, transcript_id_state, trans_list],
+        outputs=[status_trans, transcript, transcript_file, transcript_id_state, trans_table],
     )
 
     btn_summarize.click(
@@ -540,44 +587,43 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
         outputs=[status_sum, summary_md, summary_list],
     )
 
-    def refresh_transcript_ids():
-        return gr.update(choices=list_transcript_ids())
+    def refresh_transcript_table():
+        return build_transcripts_table()
 
-    tab_hist.select(fn=refresh_transcript_ids, outputs=[trans_list])
+    tab_hist.select(fn=refresh_transcript_table, outputs=[trans_table])
 
-    trans_list.change(
-        fn=load_transcript_for_ui,
-        inputs=[trans_list],
-        outputs=[transcript_hist, summary_list, summary_hist],
+    trans_table.select(
+        fn=handle_trans_table_select,
+        outputs=[selected_hist_tid, transcript_hist, summary_list, summary_hist, history_status],
     )
 
     summary_list.change(
         fn=load_summary_for_ui,
-        inputs=[trans_list, summary_list],
+        inputs=[selected_hist_tid, summary_list],
         outputs=[summary_hist],
     )
 
     btn_hist_save.click(
         fn=save_transcript_text,
-        inputs=[trans_list, transcript_hist],
+        inputs=[selected_hist_tid, transcript_hist],
         outputs=[history_status],
     )
 
     btn_hist_delete.click(
         fn=delete_transcription,
-        inputs=[trans_list],
-        outputs=[trans_list, transcript_hist, summary_list, summary_hist, history_status],
+        inputs=[selected_hist_tid],
+        outputs=[selected_hist_tid, trans_table, transcript_hist, summary_list, summary_hist, history_status],
     )
 
     btn_sum_save.click(
         fn=save_summary_text,
-        inputs=[trans_list, summary_list, summary_hist],
+        inputs=[selected_hist_tid, summary_list, summary_hist],
         outputs=[history_status],
     )
 
     btn_sum_delete.click(
         fn=delete_summary,
-        inputs=[trans_list, summary_list],
+        inputs=[selected_hist_tid, summary_list],
         outputs=[summary_list, summary_hist, history_status],
     )
 
@@ -659,11 +705,20 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
             gr.update(value=s["btn_summarize"]),
             gr.update(label=s["summary_status"]),
             gr.update(value=s["summary_md"]),
-            gr.update(choices=list_transcript_ids(), label=s["history_selector"]),
+            gr.update(
+                headers=[
+                    s["history_table_col_id"],
+                    s["history_table_col_transcript"],
+                    s["history_table_col_reports"],
+                    s["history_table_col_edit"],
+                ],
+                label=s["history_selector"],
+                value=build_transcripts_table(),
+            ),
             gr.update(label=s["history_transcript_label"]),
             gr.update(value=s["btn_save_transcription"]),
             gr.update(value=s["btn_delete_transcription"]),
-            gr.update(label=s["history_summary_selector"]),
+            gr.update(choices=[], label=s["history_summary_selector"]),
             gr.update(label=s["history_summary_label"]),
             gr.update(value=s["btn_save_summary"]),
             gr.update(value=s["btn_delete_summary"]),
@@ -708,7 +763,7 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
             btn_summarize,
             status_sum,
             summary_md,
-            trans_list,
+            trans_table,
             transcript_hist,
             btn_hist_save,
             btn_hist_delete,

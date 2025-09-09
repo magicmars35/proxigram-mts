@@ -27,10 +27,10 @@
   "history_transcript_label": "Transcription",
   "history_summary_selector": "Summaries",
   "history_summary_label": "Summary",
-  "btn_save_transcription": "\ud83d\udcbe Save transcription",
-  "btn_delete_transcription": "\ud83d\uddd1\ufe0f Delete transcription",
-  "btn_save_summary": "\ud83d\udcbe Save summary",
-  "btn_delete_summary": "\ud83d\uddd1\ufe0f Delete summary",
+  "btn_save_transcription": "💾 Save transcription",
+  "btn_delete_transcription": "🗑️ Delete transcription",
+  "btn_save_summary": "💾 Save summary",
+  "btn_delete_summary": "🗑️ Delete summary",
   "history_status": "Status",
   "template_name": "テンプレート名",
   "template_content": "テンプレート内容",
@@ -41,5 +41,9 @@
   "options_theme": "テーマ",
   "btn_save_options": "オプションを保存",
   "options_status": "オプションの状態",
-  "options_saved": "オプションを保存しました。テーマを適用するにはページを再読み込みしてください。"
+  "options_saved": "オプションを保存しました。テーマを適用するにはページを再読み込みしてください。",
+  "history_table_col_id": "ID",
+  "history_table_col_transcript": "書き起こし",
+  "history_table_col_reports": "レポート",
+  "history_table_col_edit": "編集"
 }
