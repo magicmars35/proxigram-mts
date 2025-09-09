@@ -130,96 +130,23 @@ CURRENT_LANGUAGE = UI_SETTINGS.get("language", "en")
 CURRENT_THEME = UI_SETTINGS.get("theme", "light")
 
 
-STRINGS = {
-    "en": {
-        "intro_md": (
-            """
-# 🎙️ Transcriber → Meeting Minutes
-1) **Record / Upload** an audio (WAV/MP3/M4A).
-2) **Transcribe** (FFmpeg v8 + Whisper) – default format **SRT** to see timestamps.
-3) **Summarize** (LM Studio) → **Markdown report**.
+STRINGS_DIR = "strings"
 
-*Tip*: if the **start is truncated**, increase **pre‑roll** (e.g., 300–500 ms) or keep **VAD disabled**.
-"""
-        ),
-        "tab_transcribe": "Transcribe / Summary",
-        "tab_templates": "Templates",
-        "tab_options": "Options",
-        "audio_label": "🎙️ Record or Upload",
-        "whisper_language": "Whisper Language",
-        "output_format": "Output format",
-        "advanced_settings": "Advanced settings",
-        "preroll_label": "Pre‑roll (ms) – start padding",
-        "queue_label": "Queue size for VAD (ms)",
-        "vad_enable": "Enable VAD (Silero) – may cut silences if misconfigured",
-        "vad_model": "VAD model path (e.g., ./models/silero-v5.1.2-ggml.bin)",
-        "vad_thr": "VAD threshold",
-        "vad_min_speech": "Minimum speech duration (ms)",
-        "vad_min_silence": "Minimum silence duration (ms)",
-        "btn_transcribe": "📝 Transcribe",
-        "transcription_status": "Transcription status",
-        "transcript_label": "Transcription / SRT / JSON",
-        "generated_file": "Generated file",
-        "template_selector": "Template",
-        "btn_summarize": "🧾 Summarize → Markdown report",
-        "summary_status": "Summary status",
-        "summary_md": "(the report will appear here)",
-        "template_name": "Template name",
-        "template_content": "Template content",
-        "btn_template_save": "💾 Save template",
-        "btn_template_delete": "🗑️ Delete template",
-        "template_status": "Template status",
-        "options_language": "Interface Language",
-        "options_theme": "Theme",
-        "btn_save_options": "Save options",
-        "options_status": "Options status",
-        "options_saved": "Options saved. Reload page to apply theme.",
-    },
-    "fr": {
-        "intro_md": (
-            """
-# 🎙️ Transcripteur → Compte-rendu
-1) **Enregistrer / Téléverser** un audio (WAV/MP3/M4A).
-2) **Transcrire** (FFmpeg v8 + Whisper) – format par défaut **SRT** pour voir les horodatages.
-3) **Résumer** (LM Studio) → **rapport Markdown**.
 
-*Astuce* : si le **début est tronqué**, augmentez le **pré‑roll** (ex. 300–500 ms) ou laissez le **VAD désactivé**.
-"""
-        ),
-        "tab_transcribe": "Transcrire / Résumé",
-        "tab_templates": "Modèles",
-        "tab_options": "Options",
-        "audio_label": "🎙️ Enregistrer ou Téléverser",
-        "whisper_language": "Langue Whisper",
-        "output_format": "Format de sortie",
-        "advanced_settings": "Paramètres avancés",
-        "preroll_label": "Pré‑roll (ms) – silence de début",
-        "queue_label": "Taille de file pour VAD (ms)",
-        "vad_enable": "Activer VAD (Silero) – peut couper les silences si mal configuré",
-        "vad_model": "Chemin du modèle VAD (ex: ./models/silero-v5.1.2-ggml.bin)",
-        "vad_thr": "Seuil VAD",
-        "vad_min_speech": "Durée minimale de parole (ms)",
-        "vad_min_silence": "Durée minimale de silence (ms)",
-        "btn_transcribe": "📝 Transcrire",
-        "transcription_status": "Statut de transcription",
-        "transcript_label": "Transcription / SRT / JSON",
-        "generated_file": "Fichier généré",
-        "template_selector": "Modèle",
-        "btn_summarize": "🧾 Résumer → Rapport Markdown",
-        "summary_status": "Statut du résumé",
-        "summary_md": "(le rapport apparaîtra ici)",
-        "template_name": "Nom du modèle",
-        "template_content": "Contenu du modèle",
-        "btn_template_save": "💾 Enregistrer le modèle",
-        "btn_template_delete": "🗑️ Supprimer le modèle",
-        "template_status": "Statut du modèle",
-        "options_language": "Langue de l'interface",
-        "options_theme": "Thème",
-        "btn_save_options": "Enregistrer options",
-        "options_status": "Statut des options",
-        "options_saved": "Options enregistrées. Recharger la page pour appliquer le thème.",
-    },
-}
+def load_strings() -> Dict[str, Dict[str, str]]:
+    data: Dict[str, Dict[str, str]] = {}
+    if os.path.isdir(STRINGS_DIR):
+        for fname in os.listdir(STRINGS_DIR):
+            if fname.endswith(".json"):
+                lang = os.path.splitext(fname)[0]
+                with open(os.path.join(STRINGS_DIR, fname), "r", encoding="utf-8") as f:
+                    data[lang] = json.load(f)
+    return data
+
+
+STRINGS = load_strings()
+if CURRENT_LANGUAGE not in STRINGS:
+    CURRENT_LANGUAGE = "en"
 
 
 THEMES = {
@@ -424,7 +351,7 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)", theme=t
                 btn_tpl_delete = gr.Button(strings["btn_template_delete"])
             tpl_status = gr.Textbox(label=strings["template_status"], interactive=False)
         with gr.TabItem(strings["tab_options"]) as tab_options:
-            lang_selector = gr.Dropdown(choices=["en", "fr"], value=CURRENT_LANGUAGE, label=strings["options_language"])
+            lang_selector = gr.Dropdown(choices=list(STRINGS.keys()), value=CURRENT_LANGUAGE, label=strings["options_language"])
             theme_selector = gr.Dropdown(choices=["light", "dark"], value=CURRENT_THEME, label=strings["options_theme"])
             btn_options_save = gr.Button(strings["btn_save_options"])
             options_status = gr.Textbox(label=strings["options_status"], interactive=False)
