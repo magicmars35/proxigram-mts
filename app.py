@@ -186,30 +186,32 @@ def call_lmstudio_summary(transcript: str) -> str:
 # Gradio Callbacks
 # ----------------------
 
-def do_transcribe(audio_path: str, language: str, fmt: str, preroll_ms: int, vad_enabled: bool, vad_model_path: str, vad_threshold: float, vad_min_speech_ms: int, vad_min_silence_ms: int, queue_ms: int):
-    if not audio_path:
-        return "No file provided.", "", ""
-    text, out_rel = run_ffmpeg_whisper_transcribe(
-        audio_path=audio_path,
-        language=language or WHISPER_LANGUAGE,
-        fmt=fmt,
-        preroll_ms=preroll_ms,
-        vad_enabled=vad_enabled,
-        vad_model_path=vad_model_path,
-        vad_threshold=vad_threshold,
-        vad_min_speech_ms=vad_min_speech_ms,
-        vad_min_silence_ms=vad_min_silence_ms,
-        queue_ms=queue_ms,
-    )
-    return f"Transcription OK ({len(text)} characters)", text, out_rel
+import traceback
 
+def do_transcribe(audio_path, language, fmt, preroll_ms, vad_enabled, vad_model_path, vad_threshold, vad_min_speech_ms, vad_min_silence_ms, queue_ms):
+    try:
+        if not audio_path or not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+            return "No or empty file. Please record/upload again.", "", ""
+        text, out_rel = run_ffmpeg_whisper_transcribe(
+            audio_path=audio_path, language=language, fmt=fmt, preroll_ms=preroll_ms,
+            vad_enabled=vad_enabled, vad_model_path=vad_model_path, vad_threshold=vad_threshold,
+            vad_min_speech_ms=vad_min_speech_ms, vad_min_silence_ms=vad_min_silence_ms, queue_ms=queue_ms
+        )
+        return f"Transcription OK ({len(text)} chars)", text, out_rel
+    except Exception as e:
+        tb = "".join(traceback.format_exception_only(type(e), e)).strip()
+        return f"⚠️ Transcription error: {tb}", "", ""
 
 def do_summarize(transcript: str):
-    if not transcript or not transcript.strip():
-        return "No transcription to summarize.", ""
-    md = call_lmstudio_summary(transcript)
-    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    return f"Summary generated ({len(md)} characters) – {stamp}", md
+    try:
+        if not transcript or not transcript.strip():
+            return "No transcription to summarize.", ""
+        md = call_lmstudio_summary(transcript)
+        return f"Summary OK ({len(md)} chars)", md
+    except Exception as e:
+        tb = "".join(traceback.format_exception_only(type(e), e)).strip()
+        return f"⚠️ Summary error: {tb}", ""
+
 
 # ----------------------
 # UI (Gradio 4.x)
