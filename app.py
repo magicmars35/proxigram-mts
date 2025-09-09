@@ -31,7 +31,7 @@ import os
 import json
 import subprocess
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Dict
 
 import gradio as gr
 import requests
@@ -51,6 +51,58 @@ WHISPER_MODEL_PATH = os.getenv("WHISPER_MODEL_PATH", "./models/ggml-large-v3-tur
 WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "fr")
 
 os.makedirs("transcripts", exist_ok=True)
+
+# ----------------------
+# Prompt templates
+# ----------------------
+
+TEMPLATES_PATH = "prompt_templates.json"
+DEFAULT_TEMPLATE_NAME = "default"
+DEFAULT_PROMPT = (
+    "You are an assistant specialized in meeting minutes. "
+    "From the transcript (may contain timestamps), generate a clear report in French (Markdown) with: Context, Agenda, Decisions, Actions (Owner→Action→Deadline), Next steps, Quotes, Risks."
+)
+
+
+def _ensure_templates_file() -> Dict[str, str]:
+    if not os.path.exists(TEMPLATES_PATH):
+        with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
+            json.dump({DEFAULT_TEMPLATE_NAME: DEFAULT_PROMPT}, f, ensure_ascii=False, indent=2)
+    with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_templates() -> Dict[str, str]:
+    return _ensure_templates_file()
+
+
+def save_templates(tpls: Dict[str, str]):
+    with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
+        json.dump(tpls, f, ensure_ascii=False, indent=2)
+
+
+TEMPLATES = load_templates()
+
+
+def get_template(name: str) -> str:
+    return TEMPLATES.get(name, DEFAULT_PROMPT)
+
+
+def list_templates():
+    return sorted(TEMPLATES.keys())
+
+
+def save_template(name: str, content: str):
+    TEMPLATES[name] = content
+    save_templates(TEMPLATES)
+
+
+def delete_template(name: str):
+    if name == DEFAULT_TEMPLATE_NAME:
+        return
+    if name in TEMPLATES:
+        del TEMPLATES[name]
+        save_templates(TEMPLATES)
 
 # ----------------------
 # Utilities
@@ -162,13 +214,8 @@ def run_ffmpeg_whisper_transcribe(
     return text, out_rel
 
 
-def call_lmstudio_summary(transcript: str) -> str:
+def call_lmstudio_summary(transcript: str, system_prompt: str) -> str:
     url = LMSTUDIO_BASE_URL.rstrip("/") + LMSTUDIO_API_PATH
-    system_prompt = (
-        "You are an assistant specialized in meeting minutes. "
-        "From the transcript (may contain timestamps), generate a clear report in French (Markdown) with: Context, Agenda, Decisions, Actions (Owner→Action→Deadline), Next steps, Quotes, Risks."
-    )
-
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": transcript},
@@ -202,11 +249,12 @@ def do_transcribe(audio_path, language, fmt, preroll_ms, vad_enabled, vad_model_
         tb = "".join(traceback.format_exception_only(type(e), e)).strip()
         return f"⚠️ Transcription error: {tb}", "", ""
 
-def do_summarize(transcript: str):
+def do_summarize(transcript: str, template_name: str):
     try:
         if not transcript or not transcript.strip():
             return "No transcription to summarize.", ""
-        md = call_lmstudio_summary(transcript)
+        system_prompt = get_template(template_name)
+        md = call_lmstudio_summary(transcript, system_prompt)
         return f"Summary OK ({len(md)} chars)", md
     except Exception as e:
         tb = "".join(traceback.format_exception_only(type(e), e)).strip()
@@ -251,6 +299,15 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)") as demo
 
     gr.Markdown("---")
 
+    with gr.Accordion("Prompt template", open=False):
+        template_selector = gr.Dropdown(list_templates(), value=DEFAULT_TEMPLATE_NAME, label="Template")
+        template_name = gr.Textbox(value=DEFAULT_TEMPLATE_NAME, label="Template name")
+        template_content = gr.Textbox(value=get_template(DEFAULT_TEMPLATE_NAME), lines=6, label="Template content")
+        with gr.Row():
+            btn_template_save = gr.Button("💾 Save template")
+            btn_template_delete = gr.Button("🗑️ Delete template")
+        template_status = gr.Textbox(label="Template status", interactive=False)
+
     btn_summarize = gr.Button("🧾 Summarize → Markdown report")
     status_sum = gr.Textbox(label="Summary status", interactive=False)
     summary_md = gr.Markdown("(the report will appear here)")
@@ -261,7 +318,57 @@ with gr.Blocks(title="Transcriber → Meeting Minutes (FFmpeg Whisper)") as demo
         inputs=[audio, lang, fmt, preroll, vad_enable, vad_model, vad_thr, vad_min_speech, vad_min_silence, queue],
         outputs=[status_trans, transcript, transcript_file],
     )
-    btn_summarize.click(fn=do_summarize, inputs=[transcript], outputs=[status_sum, summary_md])
+
+    def _load_template(name):
+        return name, get_template(name)
+
+    template_selector.change(
+        fn=_load_template,
+        inputs=[template_selector],
+        outputs=[template_name, template_content],
+    )
+
+    def _save_template(name, content):
+        save_template(name, content)
+        return (
+            f"Template '{name}' saved.",
+            gr.Dropdown.update(choices=list_templates(), value=name),
+        )
+
+    btn_template_save.click(
+        fn=_save_template,
+        inputs=[template_name, template_content],
+        outputs=[template_status, template_selector],
+    )
+
+    def _delete_template(name):
+        if name == DEFAULT_TEMPLATE_NAME:
+            return (
+                "Cannot delete default template.",
+                gr.Dropdown.update(choices=list_templates(), value=DEFAULT_TEMPLATE_NAME),
+                DEFAULT_TEMPLATE_NAME,
+                get_template(DEFAULT_TEMPLATE_NAME),
+            )
+        delete_template(name)
+        new_default = DEFAULT_TEMPLATE_NAME
+        return (
+            f"Template '{name}' deleted.",
+            gr.Dropdown.update(choices=list_templates(), value=new_default),
+            new_default,
+            get_template(new_default),
+        )
+
+    btn_template_delete.click(
+        fn=_delete_template,
+        inputs=[template_selector],
+        outputs=[template_status, template_selector, template_name, template_content],
+    )
+
+    btn_summarize.click(
+        fn=do_summarize,
+        inputs=[transcript, template_selector],
+        outputs=[status_sum, summary_md],
+    )
 
 if __name__ == "__main__":
     demo.launch()
