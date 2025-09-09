@@ -1,5 +1,7 @@
 # Gradio Meeting Transcriber & Summarizer (FFmpeg v8 Whisper + LM Studio)
 
+[🇫🇷 Lire ce README en français](README.fr.md)
+
 A tiny Gradio app that records **from your browser microphone** or **uploads an audio file**, transcribes it **locally** using **FFmpeg v8 + the `whisper` filter** (with Whisper.cpp models), and sends the transcript to a **local LLM (LM Studio)** to produce a clean, structured **meeting minutes** (Markdown).
 
 > **Highlights**
